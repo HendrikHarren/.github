@@ -1,0 +1,78 @@
+name: Reusable — Type Check
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        type: string
+        default: '3.12'
+      mypy-baseline:
+        description: 'Maximum allowed mypy error count'
+        type: number
+        default: 0
+      requirements-files:
+        description: 'Space-separated list of requirements files to install'
+        type: string
+        default: 'requirements.txt requirements-dev.txt'
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          for f in ${{ inputs.requirements-files }}; do pip install -r $f; done
+
+      - name: Run mypy type checker with baseline validation
+        run: |
+          set +e
+          mypy src/ --config-file=mypy.ini > mypy_output.txt 2>&1
+          set -e
+
+          cat mypy_output.txt
+
+          if [ ! -s mypy_output.txt ]; then
+            echo "::error::mypy produced no output - possible configuration error"
+            exit 1
+          fi
+
+          error_count=$(grep -c "error:" mypy_output.txt || true)
+          baseline=${{ inputs.mypy-baseline }}
+
+          echo "----------------------------------------"
+          echo "Type checking results:"
+          echo "  Current errors: $error_count"
+          echo "  Baseline: $baseline"
+          echo "----------------------------------------"
+
+          if [ "$error_count" -gt "$baseline" ]; then
+            echo "::error::Type error count increased from $baseline to $error_count"
+            echo "::error::Please fix the new type errors before merging."
+            exit 1
+          elif [ "$error_count" -lt "$baseline" ]; then
+            echo "::notice::Great! Type errors reduced from $baseline to $error_count"
+            echo "::notice::Consider updating mypy-baseline in the caller workflow."
+            exit 0
+          else
+            echo "::notice::Type error count matches baseline ($baseline errors)"
+            exit 0
+          fi

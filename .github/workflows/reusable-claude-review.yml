@@ -1,0 +1,46 @@
+name: Reusable — Claude Code Review
+
+on:
+  workflow_call:
+    inputs:
+      model:
+        description: 'Claude model to use for review'
+        type: string
+        default: 'claude-sonnet-4-6'
+      effort-level:
+        description: 'Review effort level: low, medium, high'
+        type: string
+        default: 'medium'
+      review-prompt:
+        description: 'Custom review prompt (optional, uses default if empty)'
+        type: string
+        default: ''
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model: ${{ inputs.model }}
+          effort_level: ${{ inputs.effort-level }}
+          prompt: ${{ inputs.review-prompt != '' && inputs.review-prompt || 'Please review this pull request for correctness, test coverage, security issues, and code quality. Use the repository CLAUDE.md for project-specific guidance. Be constructive and specific. Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.' }}
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)" --model ${{ inputs.model }}'
