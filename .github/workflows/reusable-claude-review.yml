@@ -7,14 +7,10 @@ on:
         description: 'Claude model to use for review'
         type: string
         default: 'claude-sonnet-4-6'
-      effort-level:
-        description: 'Review effort level: low, medium, high'
-        type: string
-        default: 'medium'
       review-prompt:
-        description: 'Custom review prompt (optional, uses default if empty)'
+        description: 'Review prompt passed directly to claude-code-action'
         type: string
-        default: ''
+        required: true
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
@@ -27,11 +23,10 @@ jobs:
       contents: read
       pull-requests: write
       issues: read
-      id-token: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
@@ -41,5 +36,5 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           model: ${{ inputs.model }}
-          prompt: ${{ inputs.review-prompt != '' && inputs.review-prompt || 'Please review this pull request for correctness, test coverage, security issues, and code quality. Use the repository CLAUDE.md for project-specific guidance. Be constructive and specific. Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.' }}
+          prompt: ${{ inputs.review-prompt }}
           allowed_tools: 'Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)'
