@@ -15,22 +15,12 @@ on:
         description: 'Directory to scan with bandit'
         type: string
         default: 'src/'
-      notify-issue-assignee:
-        description: 'GitHub username to @mention in security failure issues'
-        type: string
-        default: ''
-    secrets:
-      GH_TOKEN:
-        description: 'GitHub token for creating issues on failure'
-        required: false
 
 jobs:
   python-security:
     name: Python Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout code
@@ -76,8 +66,6 @@ jobs:
     name: Secrets Scanning
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout code
@@ -106,73 +94,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python-security, secrets-scan]
     if: always()
-    permissions:
-      contents: read
 
     steps:
       - name: Generate summary
         run: |
           echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Scan Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
           if [ "${{ needs.python-security.result }}" == "success" ]; then
-            echo "✅ Python Security: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- Python Security: PASSED" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Python Security: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "- Python Security: FAILED" >> $GITHUB_STEP_SUMMARY
           fi
-
           if [ "${{ needs.secrets-scan.result }}" == "success" ]; then
-            echo "✅ Secrets Scan: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "- Secrets Scan: PASSED" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Secrets Scan: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "- Secrets Scan: FAILED" >> $GITHUB_STEP_SUMMARY
           fi
-
-  notify-on-failure:
-    name: Send Security Failure Notifications
-    runs-on: ubuntu-latest
-    needs: [python-security, secrets-scan]
-    if: failure()
-    permissions:
-      contents: read
-      issues: write
-
-    steps:
-      - name: Create GitHub Issue for Security Failures
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const failedJobs = [];
-            if ('${{ needs.python-security.result }}' === 'failure') failedJobs.push('Python Security');
-            if ('${{ needs.secrets-scan.result }}' === 'failure') failedJobs.push('Secrets Scan');
-
-            const assignee = '${{ inputs.notify-issue-assignee }}';
-            const mention = assignee ? `\n\n@${assignee} - Please review immediately.` : '';
-
-            const existingIssues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'security,urgent',
-              per_page: 1
-            });
-
-            if (existingIssues.data.length > 0) {
-              const existing = existingIssues.data[0];
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existing.number,
-                body: `## Recurring Security Scan Failure\n\n**Failed Jobs:** ${failedJobs.join(', ')}\n**Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n**Triggered by:** ${context.eventName} on ${context.ref}`
-              });
-              return;
-            }
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🚨 Security Scan Failed - ${new Date().toISOString().split('T')[0]}`,
-              body: `## Security Scan Failure\n\n**Failed Jobs:** ${failedJobs.join(', ')}\n\n**Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\n**Triggered by:** ${context.eventName} on ${context.ref}\n\n### Action Required\n1. Review the workflow logs\n2. Address the security vulnerabilities\n3. Re-run the security scan\n4. Close this issue once resolved${mention}`,
-              labels: ['security', 'bug', 'urgent']
-            });
