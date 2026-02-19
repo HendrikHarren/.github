@@ -11,18 +11,11 @@ on:
         description: 'Review prompt passed directly to claude-code-action'
         type: string
         required: true
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN:
-        required: true
 
 jobs:
   claude-review:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: read
 
     steps:
       - name: Checkout repository
