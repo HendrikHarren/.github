@@ -3,10 +3,10 @@ name: Reusable — Claude Code Review
 on:
   workflow_call:
     inputs:
-      model:
-        description: 'Claude model to use for review'
+      claude-args:
+        description: 'Additional CLI arguments for claude-code (e.g. --model claude-sonnet-4-6)'
         type: string
-        default: 'claude-sonnet-4-6'
+        default: ''
       review-prompt:
         description: 'Review prompt passed directly to claude-code-action'
         type: string
@@ -31,10 +31,8 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Code Review
-        id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          model: ${{ inputs.model }}
           prompt: ${{ inputs.review-prompt }}
-          allowed_tools: 'Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)'
+          claude_args: ${{ inputs.claude-args }}
