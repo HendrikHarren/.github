@@ -15,6 +15,10 @@ on:
         description: 'Directory to scan with bandit'
         type: string
         default: 'src/'
+      ignore-vulns:
+        description: 'Space-separated CVE/GHSA IDs to ignore in pip-audit (e.g. GHSA-rf74-v2fm-23pw)'
+        type: string
+        default: ''
 
 jobs:
   python-security:
@@ -52,7 +56,13 @@ jobs:
       - name: Run pip-audit (CVE scanning)
         run: |
           echo "::group::pip-audit results"
-          pip-audit --desc
+          IGNORE_FLAGS=""
+          if [ -n "${{ inputs.ignore-vulns }}" ]; then
+            for vuln in ${{ inputs.ignore-vulns }}; do
+              IGNORE_FLAGS="$IGNORE_FLAGS --ignore-vuln $vuln"
+            done
+          fi
+          pip-audit --desc $IGNORE_FLAGS
           echo "::endgroup::"
 
       - name: Run bandit (security linter)
