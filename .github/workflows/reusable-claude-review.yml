@@ -15,6 +15,10 @@ on:
         description: 'Review prompt passed directly to claude-code-action'
         type: string
         required: true
+      show-full-output:
+        description: 'Show full Claude output for debugging (WARNING: may expose secrets in logs)'
+        type: boolean
+        default: false
 
 jobs:
   claude-review:
@@ -40,3 +44,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ inputs.review-prompt }}
           claude_args: ${{ inputs.claude-args }}
+          show_full_output: ${{ inputs.show-full-output }}
