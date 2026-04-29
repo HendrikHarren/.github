@@ -19,6 +19,14 @@ on:
         description: 'Show full Claude output for debugging (WARNING: may expose secrets in logs)'
         type: boolean
         default: false
+      allowed-non-write-users:
+        description: |
+          Comma-separated list of GitHub usernames that bypass the write-permission check.
+          Use to prevent 504-timeout failures on the GitHub collaborators API endpoint
+          (observed on self-hosted K8s runners). Safe for owner-only repos.
+          Default: 'HendrikHarren' (org owner, write access implied).
+        type: string
+        default: 'HendrikHarren'
 
 jobs:
   claude-review:
@@ -51,3 +59,6 @@ jobs:
           prompt: ${{ inputs.review-prompt }}
           claude_args: ${{ inputs.claude-args }}
           show_full_output: ${{ inputs.show-full-output }}
+          # Bypass flaky GitHub API permission-check (504 timeout from self-hosted K8s runner).
+          # Owner-repos only — safe as long as this workflow is org-internal.
+          allowed_non_write_users: ${{ inputs.allowed-non-write-users }}
