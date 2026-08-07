@@ -130,7 +130,17 @@ jobs:
 
       - name: TruffleHog Scan (nur verifizierte Findings, volle Git-History)
         run: |
-          "$HOME/.local/bin/trufflehog" git "file://$PWD" --results=verified --fail
+          # --exclude-detectors=Lob (claude-dotfiles#181): Der "Lob"-Detector matcht
+          # jedes Token der Form test_<34 alphanumerische Zeichen> als verifizierten
+          # Lob-API-Key. Python-Test-Funktionsnamen wie
+          # "test_accept_header_includes_event_stream" (claude/hooks/lib/
+          # test_agent_context_remote.py) treffen dieses Muster rein zufällig — es
+          # gibt keinen legitimen Lob-Anwendungsfall in den Org-Repos. Ein Rename
+          # allein reicht nicht: der Treffer liegt in historischen Commits (08.06.),
+          # der Scan läuft über die volle Git-History. Root Cause lokal mit der
+          # exakt gepinnten Binary (v3.95.5) reproduziert und mit diesem Flag
+          # verifiziert behoben (verified_secrets: 0).
+          "$HOME/.local/bin/trufflehog" git "file://$PWD" --results=verified --fail --exclude-detectors=Lob
 
   trivy-fs:
     name: Trivy Filesystem-Scan (vuln + secret)
